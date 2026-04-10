@@ -6,11 +6,11 @@
 
 ## 👥 Équipe
 
-| Membre | Couleur | Rôle principal |
-|--------|---------|----------------|
-| Joueur A | — | Modèle (model/) + logique de jeu |
-| Joueur B | — | Vue principale (view/) + PlateauPanel |
-| Joueur C | — | Contrôleur + intégration + README |
+| Membre | Rôle principal |
+|--------|----------------|
+| Florence | Modèle (model/) + logique de jeu |
+| Sarah | Vue principale (view/) + PlateauPanel |
+| Marly | Contrôleur + intégration + README |
 
 ---
 
@@ -136,11 +136,8 @@ ce qui était indispensable pour dessiner les cases, les pièces et les surligna
 ## 📅 Planning prévisionnel (Gantt simplifié)
 
 ```
-Jour 1 : Conception (classes, architecture MVC, règles)
-Jour 2 : Implémentation modèle (Piece, Plateau, Jeu, règles)
-Jour 3 : Implémentation vue Swing (plateau graphique, événements)
-Jour 4 : Intégration contrôleur + tests + corrections
-Jour 5 : Finalisation (README, soutenance, nettoyage code)
+Jour 1 : Conception (classes, architecture MVC, règles),  Implémentation modèle (Piece, Plateau, Jeu, règles),Implémentation vue Swing (plateau graphique, événements)
+Jour 2 : Intégration contrôleur + tests + corrections, Finalisation (README, soutenance, nettoyage code)
 ```
 
 ---
