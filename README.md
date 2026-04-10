@@ -1,4 +1,4 @@
-# ♟️ Jeu de Dames — Projet Java B1
+# ♟️ Stratia (Jeu De Dame) — Projet Java B1
 
 > Jeu de dames à deux joueurs, développé en Java avec interface graphique **Swing**.
 
