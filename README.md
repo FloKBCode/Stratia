@@ -91,10 +91,16 @@ JeuDeDames/
 ```
 
 ---
-
 ## 🖼️ Aperçu de l'interface
 
-*(Ajouter une capture d'écran ici avant la soutenance)*
+### Écran d'accueil
+![Ecran accueil](assets/Ecran accueil.png)
+
+### Plateau de jeu
+![Plateau de jeu](assets/Plateau de jeu.png)
+
+
+
 
 ---
 
