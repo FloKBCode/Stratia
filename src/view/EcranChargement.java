@@ -1,5 +1,7 @@
 package view;
 
+import util.IconLoader;
+
 import sound.SoundCache;
 import sound.SoundManager;
 
@@ -47,6 +49,7 @@ public class EcranChargement extends JWindow {
     public EcranChargement() {
         setSize(480, 320);
         setLocationRelativeTo(null);
+        IconLoader.appliquer(this);
         // Coins arrondis sur Windows 11 (ignoré silencieusement si non supporté)
         try { setShape(new RoundRectangle2D.Float(0, 0, 480, 320, 18, 18)); } catch (Exception ignored) {}
 

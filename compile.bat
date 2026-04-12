@@ -30,6 +30,7 @@ javac -encoding UTF-8 -d out -sourcepath src ^
     src\view\FenetreJeu.java ^
     src\view\EcranAccueil.java ^
     src\view\EcranChargement.java
+    src\util\IconLoader.java ^
 
 if %errorlevel% == 0 (
     echo.

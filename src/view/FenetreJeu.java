@@ -1,5 +1,7 @@
 package view;
 
+import util.IconLoader;
+
 import controller.JeuController;
 import model.*;
 import sound.SoundManager;
@@ -38,6 +40,7 @@ public class FenetreJeu extends JFrame {
 
         setTitle("Jeu de Dames");
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        IconLoader.appliquer(this);
         setResizable(false);
         addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) { confirmerQuitter(); }

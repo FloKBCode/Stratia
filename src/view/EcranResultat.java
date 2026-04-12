@@ -1,5 +1,7 @@
 package view;
 
+import util.IconLoader;
+
 import model.*;
 import sound.SoundManager;
 
@@ -33,6 +35,7 @@ public class EcranResultat extends JDialog {
         this.onQuitter = onQuitter;
 
         setUndecorated(true);
+        IconLoader.appliquer((java.awt.Window) this);
         setSize(400, 460);
         setLocationRelativeTo(parent);
         setResizable(false);

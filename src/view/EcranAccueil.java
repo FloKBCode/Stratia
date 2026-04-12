@@ -1,5 +1,7 @@
 package view;
 
+import util.IconLoader;
+
 import controller.JeuController;
 import model.*;
 import sound.SoundManager;
@@ -30,6 +32,7 @@ public class EcranAccueil extends JFrame {
     public EcranAccueil() {
         setTitle("Jeu de Dames — Accueil");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        IconLoader.appliquer(this);
         setResizable(false);
         setLayout(new BorderLayout(0, 0));
         getContentPane().setBackground(BG);
