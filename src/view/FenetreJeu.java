@@ -10,13 +10,13 @@ import java.awt.*;
 import java.awt.event.*;
 
 /**
- * FenetreJeu : fenêtre principale du jeu (JFrame).
- * Contient : plateau, info, historique, stats (toggle), boutons, Swing Timer pour chrono.
+ * FenetreJeu : fenetre principale du jeu (JFrame).
+ * Corrigé : emoji remplacés, EcranResultat pour fin de partie.
  */
 public class FenetreJeu extends JFrame {
 
-    private final JeuController  controller;
-    private final PlateauPanel   plateauPanel;
+    private final JeuController   controller;
+    private final PlateauPanel    plateauPanel;
     private final HistoriquePanel historiquePanel;
     private final InfoPanel       infoPanel;
     private final StatsPanel      statsPanel;
@@ -24,11 +24,9 @@ public class FenetreJeu extends JFrame {
     private boolean statsVisible = false;
     private JButton btnStats;
     private JButton btnMute;
-    private JButton btnTheme;
+    private boolean finAffichee = false;  // evite d'afficher 2x la fenetre de fin
 
     private Timer chronoTimer;
-
-    // ── Constructeur ──────────────────────────────────────────────────────────
 
     public FenetreJeu(JeuController controller) {
         this.controller = controller;
@@ -49,7 +47,7 @@ public class FenetreJeu extends JFrame {
         setLayout(new BorderLayout(0, 0));
 
         infoPanel = new InfoPanel(controller);
-        infoPanel.setPreferredSize(new Dimension(0, 80));
+        infoPanel.setPreferredSize(new Dimension(0, 82));
         add(infoPanel, BorderLayout.NORTH);
 
         plateauPanel = new PlateauPanel(controller, this::actualiserUI);
@@ -68,7 +66,6 @@ public class FenetreJeu extends JFrame {
 
         add(creerPanneauBas(), BorderLayout.SOUTH);
 
-        // Swing Timer chrono : tick toutes les secondes
         chronoTimer = new Timer(1000, e -> {
             controller.tickChrono();
             actualiserUI();
@@ -77,36 +74,36 @@ public class FenetreJeu extends JFrame {
         controller.demarrerChrono();
 
         SoundManager.demarrerMusique();
-
         actualiserUI();
         pack();
         setLocationRelativeTo(null);
     }
 
-    // ── Panneau de boutons bas ────────────────────────────────────────────────
+    // ── Panneau boutons ───────────────────────────────────────────────────────
 
     private JPanel creerPanneauBas() {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER, 9, 8));
         p.setBackground(controller.getTheme().fondApp);
 
-        JButton btnNew  = btn("🔄 Nouvelle",   new Color(55,115,175));
-        JButton btnHelp = btn("📖 Aide",        new Color(70,150,80));
-        btnStats        = btn("📊 Stats ▶",     new Color(80,100,160));
-        btnTheme        = btn("🎨 Thème",        new Color(100,80,140));
-        btnMute         = btn(muteLabel(),       new Color(100,100,100));
-        JButton btnQuit = btn("✖ Quitter",       new Color(160,55,55));
+        JButton btnNew  = btn("Nouvelle",  new Color(45, 105, 175));
+        JButton btnHelp = btn("Aide",      new Color(55, 135, 70));
+        btnStats        = btn("Stats  >",  new Color(65, 90, 160));
+        JButton btnThem = btn("Theme",     new Color(85, 65, 145));
+        btnMute         = btn("Son ON",    new Color(80, 85, 110));
+        JButton btnQuit = btn("Quitter",   new Color(155, 45, 45));
 
         btnNew.addActionListener(e  -> confirmerNouvelle());
         btnHelp.addActionListener(e -> afficherAide());
         btnStats.addActionListener(e-> toggleStats());
-        btnTheme.addActionListener(e -> changerTheme());
+        btnThem.addActionListener(e -> changerTheme());
         btnMute.addActionListener(e -> {
             SoundManager.setMuet(!SoundManager.isMuet());
-            btnMute.setText(muteLabel());
+            btnMute.setText(SoundManager.isMuet() ? "Son OFF" : "Son ON");
+            btnMute.setBackground(SoundManager.isMuet() ? new Color(80,40,40) : new Color(80,85,110));
         });
         btnQuit.addActionListener(e -> confirmerQuitter());
 
-        for (JButton b : new JButton[]{btnNew,btnHelp,btnStats,btnTheme,btnMute,btnQuit})
+        for (JButton b : new JButton[]{btnNew, btnHelp, btnStats, btnThem, btnMute, btnQuit})
             p.add(b);
         return p;
     }
@@ -114,26 +111,24 @@ public class FenetreJeu extends JFrame {
     private JButton btn(String t, Color bg) {
         JButton b = new JButton(t);
         b.setBackground(bg); b.setForeground(Color.WHITE);
-        b.setFont(new Font("Arial",Font.BOLD,12));
+        b.setFont(new Font("Arial", Font.BOLD, 12));
         b.setFocusPainted(false); b.setBorderPainted(false); b.setOpaque(true);
         b.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        b.setPreferredSize(new Dimension(115,32));
+        b.setPreferredSize(new Dimension(100, 32));
         Color hov = bg.brighter();
-        b.addMouseListener(new MouseAdapter(){
-            public void mouseEntered(MouseEvent e){ b.setBackground(hov); }
-            public void mouseExited(MouseEvent e) { b.setBackground(bg);  }
+        b.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) { b.setBackground(hov); }
+            public void mouseExited(MouseEvent e)  { b.setBackground(bg);  }
         });
         return b;
     }
 
-    private String muteLabel() { return SoundManager.isMuet() ? "🔇 Son OFF" : "🔊 Son ON"; }
-
-    // ── Actions boutons ───────────────────────────────────────────────────────
+    // ── Actions ───────────────────────────────────────────────────────────────
 
     private void toggleStats() {
         statsVisible = !statsVisible;
         statsPanel.setVisible(statsVisible);
-        btnStats.setText(statsVisible ? "📊 Stats ◀" : "📊 Stats ▶");
+        btnStats.setText(statsVisible ? "Stats  <" : "Stats  >");
         pack();
     }
 
@@ -142,20 +137,20 @@ public class FenetreJeu extends JFrame {
         controller.setTheme(t);
         applyThemeBg();
         infoPanel.appliquerTheme();
-        actualiserUI();
+        plateauPanel.repaint();
     }
 
     private void applyThemeBg() {
-        Color bg = controller.getTheme().fondApp;
-        getContentPane().setBackground(bg);
+        getContentPane().setBackground(controller.getTheme().fondApp);
     }
 
     private void confirmerNouvelle() {
         int r = JOptionPane.showConfirmDialog(this,
-            "Démarrer une nouvelle partie ?","Nouvelle partie",
+            "Demarrer une nouvelle partie ?", "Nouvelle partie",
             JOptionPane.YES_NO_OPTION);
         if (r == JOptionPane.YES_OPTION) {
             controller.recommencer();
+            finAffichee = false;
             chronoTimer.restart();
             actualiserUI();
         }
@@ -163,104 +158,97 @@ public class FenetreJeu extends JFrame {
 
     private void confirmerQuitter() {
         int r = JOptionPane.showConfirmDialog(this,
-            "Quitter le jeu ?","Quitter",JOptionPane.YES_NO_OPTION);
+            "Quitter le jeu ?", "Quitter", JOptionPane.YES_NO_OPTION);
         if (r == JOptionPane.YES_OPTION) { chronoTimer.stop(); System.exit(0); }
     }
 
     private void onTimeOut() {
         actualiserUI();
-        JOptionPane.showMessageDialog(this,
-            "⏰ Temps écoulé !\n" + controller.getJeu().getVainqueur().getNom() + " gagne !",
-            "Fin de partie", JOptionPane.INFORMATION_MESSAGE);
+        afficherFinPartie();
     }
 
-    // ── Fenêtre d'aide ────────────────────────────────────────────────────────
+    // ── Fenetre d'aide ────────────────────────────────────────────────────────
 
     private void afficherAide() {
-        JDialog dlg = new JDialog(this, "📖 Aide — Jeu de Dames", true);
+        JDialog dlg = new JDialog(this, "Aide - Jeu de Dames", true);
         dlg.setSize(480, 500);
         dlg.setLocationRelativeTo(this);
+        dlg.getContentPane().setBackground(new Color(22, 25, 42));
 
         JTabbedPane tabs = new JTabbedPane();
-        tabs.setBackground(new Color(40,40,60));
+        tabs.setBackground(new Color(30, 34, 55));
         tabs.setForeground(Color.WHITE);
+        tabs.setFont(new Font("Arial", Font.BOLD, 12));
 
-        tabs.addTab("♟ Règles",  ongletRegles());
-        tabs.addTab("💡 Astuces", ongletAstuces());
+        tabs.addTab("Regles",   ongletRegles());
+        tabs.addTab("Astuces",  ongletAstuces());
 
         dlg.add(tabs);
         dlg.setVisible(true);
     }
 
     private JScrollPane ongletRegles() {
-        JTextArea t = textArea(
-            "RÈGLES DU JEU DE DAMES\n"
-          + "══════════════════════════════════\n\n"
+        return scrollTA(
+            "REGLES DU JEU DE DAMES\n"
+          + "=================================\n\n"
           + "PLATEAU\n"
-          + "  • Grille 8×8, cases sombres uniquement\n"
-          + "  • 12 pièces par joueur\n"
-          + "  • Le joueur Blanc commence toujours\n\n"
-          + "DÉPLACEMENTS\n"
-          + "  • Pion (●) : 1 case en diagonale vers l'avant\n"
-          + "  • Dame (♛) : N cases en diagonale, 4 directions\n\n"
+          + "  . Grille 8x8, cases sombres uniquement\n"
+          + "  . 12 pieces par joueur\n"
+          + "  . Le joueur Blanc commence toujours\n\n"
+          + "DEPLACEMENTS\n"
+          + "  . Pion : 1 case en diagonale vers l'avant\n"
+          + "  . Dame : N cases en diagonale, 4 directions\n\n"
           + "CAPTURES\n"
-          + "  • La capture est OBLIGATOIRE si possible\n"
-          + "  • On saute par-dessus la pièce adverse\n"
-          + "  • Captures multiples enchaînées en un seul tour\n"
-          + "  • Un pion peut capturer dans toutes les diagonales\n\n"
+          + "  . La capture est OBLIGATOIRE si possible\n"
+          + "  . On saute par-dessus la piece adverse\n"
+          + "  . Captures multiples en un seul tour\n\n"
           + "PROMOTION\n"
-          + "  • Un pion atteignant la dernière rangée adverse\n"
-          + "    devient Dame (♛)\n"
-          + "  • La promotion arrête les captures multiples\n\n"
+          + "  . Un pion atteignant la derniere rangee\n"
+          + "    adverse devient Dame\n"
+          + "  . La promotion arrete les captures multiples\n\n"
           + "CHRONO\n"
-          + "  • Chaque joueur a 2 minutes\n"
-          + "  • Si le temps est épuisé, le joueur perd\n"
-          + "  • Alerte rouge sous 20 secondes\n\n"
+          + "  . Chaque joueur a 2 minutes\n"
+          + "  . Alerte rouge sous 20 secondes\n\n"
           + "VICTOIRE\n"
-          + "  • Le joueur sans pièces ou sans coup valide perd\n"
-          + "  • Ou le joueur dont le temps est écoulé perd"
+          + "  . Sans pieces ou sans coup valide -> perd\n"
+          + "  . Temps ecoule -> perd"
         );
-        return new JScrollPane(t);
     }
 
     private JScrollPane ongletAstuces() {
-        JTextArea t = textArea(
-            "ASTUCES STRATÉGIQUES\n"
-          + "══════════════════════════════════\n\n"
-          + "🔰 DÉBUTANT\n"
-          + "  • Avancez vos pièces vers le centre\n"
-          + "  • Gardez la rangée arrière pour protéger\n"
-          + "    contre les captures de dames adverses\n"
-          + "  • Favorisez les captures en chaîne\n\n"
-          + "⚔️  INTERMÉDIAIRE\n"
-          + "  • Forcez l'adversaire à se positionner\n"
-          + "    sur vos cases de capture\n"
-          + "  • Sacrifiez une pièce pour en capturer deux\n"
-          + "  • Protégez vos pièces en binôme\n\n"
-          + "♛  AVANCÉ\n"
-          + "  • Obtenez une Dame le plus vite possible\n"
-          + "  • Une Dame en bord de plateau est moins utile\n"
-          + "  • En fin de partie : Dame + 2 pions bat Dame seule\n\n"
-          + "🎯  CONTRE LE BOT\n"
-          + "  • Facile  : le bot joue aléatoirement\n"
-          + "  • Moyen   : le bot préfère les captures\n"
-          + "  • Difficile : le bot utilise le minimax\n"
-          + "    → profondeur 6, difficile à battre !"
+        return scrollTA(
+            "ASTUCES STRATEGIQUES\n"
+          + "=================================\n\n"
+          + "DEBUTANT\n"
+          + "  . Avancez vos pieces vers le centre\n"
+          + "  . Gardez la rangee arriere pour proteger\n"
+          + "  . Favorisez les captures en chaine\n\n"
+          + "INTERMEDIAIRE\n"
+          + "  . Forcez l'adversaire sur vos cases de capture\n"
+          + "  . Sacrifiez une piece pour en capturer deux\n"
+          + "  . Protegez vos pieces en binome\n\n"
+          + "AVANCE\n"
+          + "  . Obtenez une Dame le plus vite possible\n"
+          + "  . Une Dame en bord de plateau est moins utile\n"
+          + "  . Dame + 2 pions bat Dame seule en fin de partie\n\n"
+          + "CONTRE LE BOT\n"
+          + "  . Facile   : le bot joue aleatoirement\n"
+          + "  . Moyen    : le bot prefere les captures\n"
+          + "  . Difficile: minimax profondeur 6, dur a battre !"
         );
+    }
+
+    private JScrollPane scrollTA(String txt) {
+        JTextArea t = new JTextArea(txt);
+        t.setEditable(false);
+        t.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        t.setBackground(new Color(18, 20, 38));
+        t.setForeground(new Color(205, 210, 230));
+        t.setMargin(new Insets(10, 10, 10, 10));
         return new JScrollPane(t);
     }
 
-    private JTextArea textArea(String txt) {
-        JTextArea t = new JTextArea(txt);
-        t.setEditable(false);
-        t.setFont(new Font("Monospaced",Font.PLAIN,12));
-        t.setBackground(new Color(30,30,45));
-        t.setForeground(new Color(210,215,230));
-        t.setMargin(new Insets(8,8,8,8));
-        return t;
-    }
-
-    // ── Mise à jour globale de l'UI ───────────────────────────────────────────
+    // ── Mise a jour UI ────────────────────────────────────────────────────────
 
     public void actualiserUI() {
         SwingUtilities.invokeLater(() -> {
@@ -269,12 +257,27 @@ public class FenetreJeu extends JFrame {
             if (statsVisible) statsPanel.actualiser();
             plateauPanel.repaint();
 
-            if (controller.getJeu().isPartieTerminee() && !controller.estTourDuBot()) {
+            if (controller.getJeu().isPartieTerminee()
+                    && !controller.estTourDuBot()
+                    && !finAffichee) {
+                finAffichee = true;
                 chronoTimer.stop();
-                JOptionPane.showMessageDialog(this,
-                    "🎉 " + controller.getJeu().getVainqueur().getNom() + " remporte la partie !",
-                    "Fin de partie", JOptionPane.INFORMATION_MESSAGE);
+                // Léger délai pour laisser le repaint se terminer
+                Timer t = new Timer(300, e -> afficherFinPartie());
+                t.setRepeats(false); t.start();
             }
         });
+    }
+
+    private void afficherFinPartie() {
+        EcranResultat.afficher(this, controller.getJeu(),
+            () -> { // onRejouer
+                controller.recommencer();
+                finAffichee = false;
+                chronoTimer.restart();
+                actualiserUI();
+            },
+            () -> System.exit(0) // onQuitter
+        );
     }
 }
