@@ -6,28 +6,63 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * JeuController : couche Controller (MVC).
- * Gère sélection, coups humains, tours du Bot, Chrono.
- * Aucune référence directe à Swing — communique via Runnable callbacks.
+ * JeuController : couche Controller du patron MVC.
+ *
+ * <p>Responsabilités :</p>
+ * <ul>
+ *   <li>Recevoir les clics souris de la vue et les traduire en coups</li>
+ *   <li>Gérer la sélection de pièce et les destinations possibles</li>
+ *   <li>Déclencher le tour du Bot dans un thread séparé</li>
+ *   <li>Faire avancer le chrono et gérer l'expiration du temps</li>
+ *   <li>Notifier la vue via des callbacks {@link Runnable}</li>
+ * </ul>
+ *
+ * <p><b>Séparation MVC stricte</b> : cette classe ne contient aucune
+ * référence directe à un composant Swing. La communication vers la vue
+ * se fait exclusivement via des Runnables injectés par
+ * {@link #setCallbacks(Runnable, Runnable, Runnable)}.</p>
  */
 public class JeuController {
 
+    /** Le modèle de jeu (règles, état, historique). */
     private final Jeu    jeu;
-    private final Bot    bot;           // null si vs humain
+
+    /** Le bot adversaire, ou {@code null} en mode humain vs humain. */
+    private final Bot    bot;
+
+    /** Le compte à rebours de 2 minutes par joueur. */
     private final Chrono chrono;
+
+    /** Thème visuel actif (Classique ou Obsidian). */
     private Theme        theme;
 
+    /** Ligne de la pièce actuellement sélectionnée (-1 si aucune). */
     private int selectedLigne   = -1;
+
+    /** Colonne de la pièce actuellement sélectionnée (-1 si aucune). */
     private int selectedColonne = -1;
 
-    private Runnable onUpdate;    // appelé après chaque changement d'état
-    private Runnable onBotThink;  // appelé quand le bot commence à réfléchir
-    private Runnable onTimeOut;   // appelé quand le temps d'un joueur est écoulé
+    /** Callback déclenché après chaque mise à jour de l'état de jeu. */
+    private Runnable onUpdate;
 
-    private static final int SECONDES_PAR_JOUEUR = 120; // 2 minutes
+    /** Callback déclenché quand le bot commence à calculer. */
+    private Runnable onBotThink;
+
+    /** Callback déclenché quand le temps d'un joueur est écoulé. */
+    private Runnable onTimeOut;
+
+    /** Durée du chrono par joueur en secondes (2 minutes). */
+    private static final int SECONDES_PAR_JOUEUR = 120;
 
     // ── Constructeur ──────────────────────────────────────────────────────────
 
+    /**
+     * Crée le contrôleur en reliant le modèle, le bot et le thème.
+     *
+     * @param jeu   le modèle de jeu
+     * @param bot   le bot (peut être {@code null} pour un mode 2 joueurs humains)
+     * @param theme le thème visuel initial
+     */
     public JeuController(Jeu jeu, Bot bot, Theme theme) {
         this.jeu    = jeu;
         this.bot    = bot;
@@ -35,22 +70,47 @@ public class JeuController {
         this.chrono = new Chrono(SECONDES_PAR_JOUEUR);
     }
 
+    /**
+     * Injecte les callbacks de notification vers la vue.
+     * Doit être appelé après construction, avant toute interaction.
+     *
+     * @param onUpdate   appelé après chaque changement d'état (repaint de la vue)
+     * @param onBotThink appelé quand le bot commence à réfléchir
+     * @param onTimeOut  appelé quand le temps d'un joueur est écoulé
+     */
     public void setCallbacks(Runnable onUpdate, Runnable onBotThink, Runnable onTimeOut) {
         this.onUpdate   = onUpdate;
         this.onBotThink = onBotThink;
         this.onTimeOut  = onTimeOut;
     }
 
-    // ── Clic humain ───────────────────────────────────────────────────────────
+    // ── Gestion des clics ──────────────────────────────────────────────────────
 
+    /**
+     * Traite un clic sur la case (ligne, col) par le joueur humain.
+     *
+     * <p>Comportement :</p>
+     * <ul>
+     *   <li>Si aucune pièce n'est sélectionnée et qu'on clique sur une pièce
+     *       jouable → elle devient sélectionnée</li>
+     *   <li>Si une pièce est déjà sélectionnée et qu'on clique sur une destination
+     *       valide → le coup est joué</li>
+     *   <li>Si le coup échoue → on tente de re-sélectionner la case cliquée</li>
+     * </ul>
+     *
+     * @param ligne ligne de la case cliquée (0-7)
+     * @param col   colonne de la case cliquée (0-7)
+     * @return {@code true} si un changement d'état a eu lieu
+     */
     public boolean handleCellClick(int ligne, int col) {
         if (jeu.isPartieTerminee()) return false;
-        if (estTourDuBot()) return false;   // ignorer clics pendant le tour bot
+        if (estTourDuBot()) return false; // ignorer les clics pendant le tour du bot
 
         Piece p = jeu.getPlateau().getPiece(ligne, col);
         boolean changed = false;
 
         if (selectedLigne >= 0) {
+            // Tentative de déplacement vers la case cliquée
             boolean moved = jeu.jouerCoup(selectedLigne, selectedColonne, ligne, col);
             changed = true;
             selectedLigne = -1; selectedColonne = -1;
@@ -58,7 +118,7 @@ public class JeuController {
             if (moved) {
                 SoundManager.playDeplacement();
                 syncChronoApresJeu();
-                // Multi-capture : re-sélectionner automatiquement
+                // Capture multiple : re-sélectionner automatiquement la pièce active
                 if (jeu.getPieceEnCours() != null) {
                     Piece pc = jeu.getPieceEnCours();
                     selectedLigne   = pc.getLigne();
@@ -67,9 +127,11 @@ public class JeuController {
                 if (jeu.isPartieTerminee()) SoundManager.playFinPartie();
             } else if (p != null && p.getCouleur() == jeu.getJoueurActuel().getCouleur()
                     && !jeu.getCoupsValides(ligne, col).isEmpty()) {
+                // Le coup était invalide, mais on clique sur une autre pièce jouable
                 selectedLigne = ligne; selectedColonne = col;
             }
         } else {
+            // Première sélection : doit être une pièce du joueur actuel avec un coup disponible
             if (p != null && p.getCouleur() == jeu.getJoueurActuel().getCouleur()
                     && !jeu.getCoupsValides(ligne, col).isEmpty()) {
                 selectedLigne = ligne; selectedColonne = col; changed = true;
@@ -78,7 +140,7 @@ public class JeuController {
 
         if (onUpdate != null) onUpdate.run();
 
-        // Déclencher le tour du bot si c'est son tour
+        // Si c'est maintenant le tour du bot, déclencher son calcul
         if (!jeu.isPartieTerminee() && estTourDuBot()) lancerTourBot();
 
         return changed;
@@ -86,28 +148,40 @@ public class JeuController {
 
     // ── Tour du Bot ───────────────────────────────────────────────────────────
 
+    /**
+     * Indique si c'est actuellement le tour du bot (joueur Noir + bot présent).
+     *
+     * @return {@code true} si le bot doit jouer
+     */
     public boolean estTourDuBot() {
         return bot != null
             && jeu.getJoueurActuel().getCouleur() == Piece.Couleur.NOIR
             && !jeu.isPartieTerminee();
     }
 
-    /** Lance le calcul du coup bot dans un thread séparé (ne bloque pas l'EDT). */
+    /**
+     * Lance le calcul du coup du bot dans un thread daemon séparé.
+     * Cela évite de bloquer l'EDT (Event Dispatch Thread) de Swing pendant
+     * le calcul minimax qui peut prendre jusqu'à ~1 seconde.
+     */
     public void lancerTourBot() {
         if (onBotThink != null) onBotThink.run();
         Thread t = new Thread(() -> {
-            // Délai artificiel pour simuler la réflexion
-            try { Thread.sleep(bot.getNiveau() == Bot.Niveau.FACILE ? 300
-                             : bot.getNiveau() == Bot.Niveau.MOYEN  ? 600 : 1000);
+            // Délai artificiel pour simuler la réflexion et laisser la vue se rafraîchir
+            try {
+                Thread.sleep(bot.getNiveau() == Bot.Niveau.FACILE ? 300
+                           : bot.getNiveau() == Bot.Niveau.MOYEN  ? 600 : 1000);
             } catch (InterruptedException ignored) {}
 
+            // Calcul du meilleur coup
             Coup c = bot.choisirCoup(jeu);
             if (c != null) {
                 jeu.jouerCoup(c.getFromLigne(), c.getFromColonne(),
                               c.getToLigne(),   c.getToColonne());
                 SoundManager.playDeplacement();
                 syncChronoApresJeu();
-                // Enchaîner les multi-captures du bot
+
+                // Gérer les captures multiples du bot automatiquement
                 while (jeu.getPieceEnCours() != null) {
                     Piece pc = jeu.getPieceEnCours();
                     List<Coup> suites = jeu.getCoupsValides(pc.getLigne(), pc.getColonne());
@@ -127,15 +201,18 @@ public class JeuController {
 
     // ── Chrono ────────────────────────────────────────────────────────────────
 
-    /** Appelé toutes les secondes par le Swing Timer de FenetreJeu. */
+    /**
+     * Décrémente d'une seconde le chrono du joueur actuel.
+     * Appelé toutes les secondes par le Swing Timer de {@link view.FenetreJeu}.
+     * Si le temps est écoulé, force la défaite du joueur actuel.
+     */
     public void tickChrono() {
         if (jeu.isPartieTerminee() || !chrono.estActif()) return;
         chrono.tick();
         Piece.Couleur actif = jeu.getJoueurActuel().getCouleur();
         if (chrono.estEpuise(actif)) {
             chrono.arreter();
-            Joueur perdant = jeu.getJoueurActuel();
-            jeu.forcerDefaite(perdant);
+            jeu.forcerDefaite(jeu.getJoueurActuel());
             SoundManager.playTempsEcoule();
             if (onTimeOut != null) onTimeOut.run();
         } else {
@@ -144,15 +221,23 @@ public class JeuController {
         if (onUpdate != null) onUpdate.run();
     }
 
+    /** Synchronise le chrono sur le joueur dont c'est le nouveau tour. */
     private void syncChronoApresJeu() {
         chrono.changerJoueur(jeu.getJoueurActuel().getCouleur());
     }
 
+    /** Démarre le décompte du chrono (appelé depuis FenetreJeu au lancement). */
     public void demarrerChrono() { chrono.demarrer(); }
+
+    /** Arrête le décompte (appelé en fin de partie ou en pause). */
     public void arreterChrono()  { chrono.arreter(); }
 
     // ── Réinitialisation ──────────────────────────────────────────────────────
 
+    /**
+     * Remet à zéro le jeu, la sélection et le chrono.
+     * Appelé par le bouton "Nouvelle partie".
+     */
     public void recommencer() {
         jeu.recommencer();
         selectedLigne = selectedColonne = -1;
@@ -160,17 +245,38 @@ public class JeuController {
         chrono.demarrer();
     }
 
-    // ── Accesseurs ────────────────────────────────────────────────────────────
+    // ── Accesseurs pour la vue ─────────────────────────────────────────────────
 
-    public int         getSelectedLigne()   { return selectedLigne; }
-    public int         getSelectedColonne() { return selectedColonne; }
-    public List<Coup>  getCoupsDisponibles(){
+    /** @return la ligne de la pièce sélectionnée (-1 si aucune) */
+    public int getSelectedLigne()   { return selectedLigne; }
+
+    /** @return la colonne de la pièce sélectionnée (-1 si aucune) */
+    public int getSelectedColonne() { return selectedColonne; }
+
+    /**
+     * @return la liste des coups disponibles pour la pièce sélectionnée,
+     *         vide si aucune pièce n'est sélectionnée
+     */
+    public List<Coup> getCoupsDisponibles() {
         if (selectedLigne < 0) return new ArrayList<>();
         return jeu.getCoupsValides(selectedLigne, selectedColonne);
     }
+
+    /** @return le modèle de jeu */
     public Jeu    getJeu()    { return jeu; }
+
+    /** @return le chrono du jeu */
     public Chrono getChrono() { return chrono; }
+
+    /** @return le thème visuel actif */
     public Theme  getTheme()  { return theme; }
-    public void   setTheme(Theme t) { this.theme = t; }
-    public void   resetSelection()  { selectedLigne = selectedColonne = -1; }
+
+    /**
+     * Change le thème visuel actif.
+     * @param t le nouveau thème
+     */
+    public void setTheme(Theme t) { this.theme = t; }
+
+    /** Efface la sélection courante (aucune pièce sélectionnée). */
+    public void resetSelection() { selectedLigne = selectedColonne = -1; }
 }
