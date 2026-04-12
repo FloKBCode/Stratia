@@ -1,6 +1,6 @@
 @echo off
 echo =============================================
-echo   Jeu de Dames - Compilation Java
+echo   Stratia - Jeu de Dames - Compilation
 echo =============================================
 
 if not exist out mkdir out
@@ -15,11 +15,21 @@ javac -encoding UTF-8 -d out -sourcepath src ^
     src\model\Coup.java ^
     src\model\Joueur.java ^
     src\model\Jeu.java ^
+    src\model\Bot.java ^
+    src\model\Chrono.java ^
+    src\model\StatsPartie.java ^
+    src\model\Theme.java ^
+    src\sound\SoundCache.java ^
+    src\sound\SoundManager.java ^
     src\controller\JeuController.java ^
     src\view\PlateauPanel.java ^
     src\view\HistoriquePanel.java ^
     src\view\InfoPanel.java ^
-    src\view\FenetreJeu.java
+    src\view\StatsPanel.java ^
+    src\view\EcranResultat.java ^
+    src\view\FenetreJeu.java ^
+    src\view\EcranAccueil.java ^
+    src\view\EcranChargement.java
 
 if %errorlevel% == 0 (
     echo.
